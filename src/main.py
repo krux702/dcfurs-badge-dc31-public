@@ -212,12 +212,15 @@ class animation_sparkle:
 class badge(object):
     def __init__(self):
         self.disp = is31fl3737()
-        #self.touch = TouchController((4,5,6,7))
         self.touch = TouchController(TOUCH_PINS)
         self.touch.channels[0].level_lo = 15000
         self.touch.channels[0].level_hi = 20000
         self.touch.channels[1].level_lo = 15000
         self.touch.channels[1].level_hi = 20000
+        self.touch.channels[2].level_lo = 15000
+        self.touch.channels[2].level_hi = 20000
+        self.touch.channels[3].level_lo = 15000
+        self.touch.channels[3].level_hi = 20000
         self.anim_index = 1
         self.half_bright = False
         self.animations = [animation_rainbow_around(self),animation_rainbow_down(self),animation_chasers(self),animation_sparkle(self)]
