@@ -239,6 +239,7 @@ class badge(object):
         self.blush_count = 0
         self.ear1_count = 0
         self.ear2_count = 0
+        self.boop_debounce = 0
         self.booped = False
         self.ear1_touch = False
         self.ear2_touch = False
@@ -325,14 +326,22 @@ class badge(object):
     def update(self,*args):
         self.touch.update()
         if (self.touch.channels[0].level > 0.3) or (self.touch.channels[1].level > 0.3):
-            if not self.booped:
-                print("boop!")
+            self.boop_debounce += 1
+            if not self.booped and self.boop_debounce > 3:
+                print("boop", end = "")
+                if (self.touch.channels[0].level > 0.3) and (self.touch.channels[1].level > 0.3):
+                    print("!")
+                elif (self.touch.channels[0].level > 0.3) and not (self.touch.channels[1].level > 0.3):
+                    print(".")
+                else:
+                    print("'")
                 self.booped = True
             self.blush_count = 50
             if self.blush_mix < 1.0:
                 self.blush_mix += 0.5
         else:
             self.booped = False
+            self.boop_debounce = 0
             if self.blush_count > 0:
                 self.blush_count -= 1
             else:
