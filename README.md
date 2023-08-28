@@ -1,12 +1,20 @@
 # DEF CON Furs 2023 Badge 
 
-# ventorvar's boop nonsense
+# krux's update to ventorvar's boop nonsense
 
 This is not a full source/build, but meant two files you can update that adds initial boop support. Get it going with something like:
 
 ```
 rshell rsync ./src /
 rshell "repl ~ import machine ~ machine.soft_reset() ~"
+```
+
+You can also make use of Adafruit's `ampy` utility to write changes:
+
+```
+ampy --port /dev/ttyACM0 put main.py
+ampy --port /dev/ttyACM0 put touch.py
+ampy --port /dev/ttyACM0 put config
 ```
 
 ## Schematic
