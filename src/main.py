@@ -5,11 +5,18 @@ import time
 from random import random, randint
 import array
 import gc
+import os
 
 from is31fl3737 import is31fl3737, rgb_value
 
 TOUCH_PINS = (4, 5, 6, 7, 22, 23, 24, 25)
 from touch import TouchController
+
+def file_exists(filename):
+    try:
+        return (os.stat(filename)[0] & 0x4000) == 0
+    except OSError:
+        return False
 
 def pallet_rainbow(target):
     print("rainbow")
@@ -52,7 +59,6 @@ def pallet_set_colour(target, hue, hue_spread, sat, sat_spread):
         target[len(target)-count+j][0] = hue+offset
         target[len(target)-count+j][1] = sat
         target[len(target)-count+j][2] = 255
-
 
 def pallet_blue(target):
     pallet_set_colour(target, 0.5, 0.3, 0.8, 0.4)
@@ -258,27 +264,28 @@ class badge(object):
 
     def save_config(self):
         with open("config", "w") as file:
-          file.write("half_bright=")
-          if self.half_bright:
-            file.write("true\n")
-          else:
-            file.write("false\n")
-          file.write("anim_index="+str(self.anim_index)+"\n")
-          file.write("pallet_index="+str(self.pallet_index)+"\n")
+            file.write("half_bright=")
+            if self.half_bright:
+                file.write("true\n")
+            else:
+                file.write("false\n")
+            file.write("anim_index="+str(self.anim_index)+"\n")
+            file.write("pallet_index="+str(self.pallet_index)+"\n")
 
     def read_config(self):
-        with open("config", "r") as file:
-          data = file.read().splitlines()
-        for line in data:
-          if line == "half_bright=true":
-            self.half_bright = True
+        if file_exists("config"):
+            with open("config", "r") as file:
+                data = file.read().splitlines()
+            for line in data:
+                if line == "half_bright=true":
+                    self.half_bright = True
 
-          if line[:11] == "anim_index=":
-            self.anim_index = int(line[11:])
+                if line[:11] == "anim_index=":
+                    self.anim_index = int(line[11:])
 
-          if line[:13] == "pallet_index=":
-            self.pallet_index = int(line[13:])
-            self.pallet_functions[self.pallet_index](self.pallet)
+                if line[:13] == "pallet_index=":
+                    self.pallet_index = int(line[13:])
+                    self.pallet_functions[self.pallet_index](self.pallet)
 
     def blush(self, mix):
         if mix > 1.0: mix = 1.0
