@@ -8,6 +8,7 @@ import gc
 
 from is31fl3737 import is31fl3737, rgb_value
 
+TOUCH_PINS = (4, 5, 6, 7, 22, 23, 24, 25)
 from touch import TouchController
 
 def pallet_rainbow(target):
@@ -211,7 +212,8 @@ class animation_sparkle:
 class badge(object):
     def __init__(self):
         self.disp = is31fl3737()
-        self.touch = TouchController((4,5,6,7))
+        #self.touch = TouchController((4,5,6,7))
+        self.touch = TouchController(TOUCH_PINS)
         self.touch.channels[0].level_lo = 15000
         self.touch.channels[0].level_hi = 20000
         self.touch.channels[1].level_lo = 15000
@@ -223,8 +225,14 @@ class badge(object):
         self.pallet_index = 0
         self.pallet_functions = [pallet_rainbow, pallet_blue, pallet_red, pallet_yellow, pallet_green, pallet_purple, pallet_magenta]
         self.blush_mix = 0.0
+        self.ear1_mix = 0.0
+        self.ear2_mix = 0.0
         self.blush_count = 0
+        self.ear1_count = 0
+        self.ear2_count = 0
         self.booped = False
+        self.ear1_touch = False
+        self.ear2_touch = False
 
         self.sw4 = Pin(10)
         self.sw5 = Pin(11)
@@ -272,10 +280,34 @@ class badge(object):
     def blush(self, mix):
         if mix > 1.0: mix = 1.0
         if mix < 0.0: mix = 0.0
-        for i in range(1,15):
-            self.disp.downward[-i].r = (self.disp.downward[-i].r * (1-mix)) + (mix * 255)
-            self.disp.downward[-i].g = (self.disp.downward[-i].g * (1-mix)) + (mix * 10)
-            self.disp.downward[-i].b = (self.disp.downward[-i].b * (1-mix)) + (mix * 10)
+
+        for l in self.disp.cheak1:
+            l.r = (l.r *  (1-mix)) + (mix * 255)
+            l.g = (l.g *  (1-mix)) + (mix * 10)
+            l.b = (l.b *  (1-mix)) + (mix * 10)
+
+        for l in self.disp.cheak2:
+            l.r = (l.r *  (1-mix)) + (mix * 255)
+            l.g = (l.g *  (1-mix)) + (mix * 10)
+            l.b = (l.b *  (1-mix)) + (mix * 10)
+
+    def ear1_blush(self, mix):
+        if mix > 1.0: mix = 1.0
+        if mix < 0.0: mix = 0.0
+
+        for l in self.disp.ear1:
+            l.r = (l.r *  (1-mix)) + (mix * 255)
+            l.g = (l.g *  (1-mix)) + (mix * 10)
+            l.b = (l.b *  (1-mix)) + (mix * 10)
+
+    def ear2_blush(self, mix):
+        if mix > 1.0: mix = 1.0
+        if mix < 0.0: mix = 0.0
+
+        for l in self.disp.ear2:
+            l.r = (l.r *  (1-mix)) + (mix * 255)
+            l.g = (l.g *  (1-mix)) + (mix * 10)
+            l.b = (l.b *  (1-mix)) + (mix * 10)
 
     def isr_update(self,*args):
         schedule(self.update, self)
@@ -296,6 +328,36 @@ class badge(object):
             else:
                 if self.blush_mix > 0.0:
                     self.blush_mix -= 0.05
+
+        if (self.touch.channels[3].level > 0.3):
+            if not self.ear1_touch:
+                print("ear1")
+                self.ear1_touch = True
+            self.ear1_count = 12
+            if self.ear1_mix < 1.0:
+                self.ear1_mix += 0.5
+        else:
+            self.ear1_touch = False
+            if self.ear1_count > 0:
+                self.ear1_count -= 1
+            else:
+                if self.ear1_mix > 0.0:
+                    self.ear1_mix -= 0.05
+
+        if (self.touch.channels[2].level > 0.3):
+            if not self.ear2_touch:
+                print("ear2")
+                self.ear2_touch = True
+            self.ear2_count = 12
+            if self.ear2_mix < 1.0:
+                self.ear2_mix += 0.5
+        else:
+            self.ear2_touch = False
+            if self.ear2_count > 0:
+                self.ear2_count -= 1
+            else:
+                if self.ear2_mix > 0.0:
+                    self.ear2_mix -= 0.05
 
         self.sw4_state <<= 1
         self.sw4_state |= self.sw4()
@@ -342,6 +404,8 @@ class badge(object):
 
         self.animations[self.anim_index].update()
         self.blush(self.blush_mix)
+        self.ear1_blush(self.ear1_mix)
+        self.ear2_blush(self.ear2_mix)
         self.disp.update()
         gc.collect()
 
