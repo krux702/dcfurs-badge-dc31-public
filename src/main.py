@@ -1,20 +1,37 @@
-from machine import Timer, Pin
-from micropython import schedule
-import math
-import time
-from random import random, randint
-import array
 import gc
-import os
+# enable garbage collection and set the threshold
+gc.enable()
+gc.threshold((gc.mem_free() + gc.mem_alloc()) // 4)
 
+# excessive gc after modules load to reduce fragmentation of memory
+from machine import Timer, Pin, reset
+gc.collect()
+from micropython import schedule
+gc.collect()
+import micropython
+gc.collect()
+import math
+gc.collect()
+import time
+gc.collect()
+from random import random, randint
+gc.collect()
+import array
+gc.collect()
+from os import stat
+gc.collect()
 from is31fl3737 import is31fl3737, rgb_value
+gc.collect()
+
+micropython.alloc_emergency_exception_buf(100)
 
 TOUCH_PINS = (4, 5, 6, 7, 22, 23, 24, 25)
 from touch import TouchController
+gc.collect()
 
 def file_exists(filename):
     try:
-        return (os.stat(filename)[0] & 0x4000) == 0
+        return (stat(filename)[0] & 0x4000) == 0
     except OSError:
         return False
 
@@ -244,6 +261,10 @@ class badge(object):
         self.ear1_touch = False
         self.ear2_touch = False
 
+        self.wink_mix = 0.0
+        self.wink_count = 0
+        self.wink_flag = False
+
         self.sw4 = Pin(10)
         self.sw5 = Pin(11)
 
@@ -259,6 +280,8 @@ class badge(object):
         self.pallet_functions[self.pallet_index](self.pallet)
 
         self.read_config()
+
+        self.mem_info_count = 0
 
         print("Dreams are messages from the deep.")
         self.timer = Timer(mode=Timer.PERIODIC, freq=15, callback=self.isr_update) # <== Comment out to use the polled method
@@ -320,6 +343,14 @@ class badge(object):
             l.g = (l.g *  (1-mix)) + (mix * 10)
             l.b = (l.b *  (1-mix)) + (mix * 10)
 
+    def eye2_wink(self, mix):
+        if mix > 1.0: mix = 1.0
+        if mix < 0.0: mix = 0.0
+
+        self.disp.eye2.r = (self.disp.eye2.r * (1-mix)) + (mix * 0)
+        self.disp.eye2.g = (self.disp.eye2.g * (1-mix)) + (mix * 0)
+        self.disp.eye2.b = (self.disp.eye2.b * (1-mix)) + (mix * 0)
+
     def isr_update(self,*args):
         schedule(self.update, self)
 
@@ -331,6 +362,11 @@ class badge(object):
                 print("boop", end = "")
                 if (self.touch.channels[0].level > 0.3) and (self.touch.channels[1].level > 0.3):
                     print("!")
+                    if randint(1,100) > 50:
+                        self.wink_flag = True
+                        self.wink_count = 6
+                        self.wink_mix = 1
+
                 elif (self.touch.channels[0].level > 0.3) and not (self.touch.channels[1].level > 0.3):
                     print(".")
                 else:
@@ -347,6 +383,12 @@ class badge(object):
             else:
                 if self.blush_mix > 0.0:
                     self.blush_mix -= 0.05
+
+        if self.wink_count > 0:
+            self.wink_count -= 1
+        elif self.wink_mix > 0.0:
+            self.wink_flag = False
+            self.wink_mix -= 0.1
 
         if (self.touch.channels[3].level > 0.3):
             if not self.ear1_touch:
@@ -394,6 +436,10 @@ class badge(object):
         if self.sw4_count == 0 and self.sw4_last > 0:
             if self.sw4_last > 10: # long press
                 self.half_bright = not self.half_bright
+                if self.half_bright:
+                    print("Half bright")
+                else:
+                    print("Full bright")
             else:
                 self.anim_index += 1
                 if self.anim_index >= len(self.animations):
@@ -422,10 +468,26 @@ class badge(object):
             self.disp.brightness = 255
 
         self.animations[self.anim_index].update()
-        self.blush(self.blush_mix)
-        self.ear1_blush(self.ear1_mix)
-        self.ear2_blush(self.ear2_mix)
+        if self.blush_mix:
+            self.blush(self.blush_mix)
+        if self.ear1_mix:
+            self.ear1_blush(self.ear1_mix)
+        if self.ear2_mix:
+            self.ear2_blush(self.ear2_mix)
+        if self.wink_mix:
+            self.eye2_wink(self.wink_mix)
         self.disp.update()
+
+        # memory reporting
+        self.mem_info_count += 1
+        if self.mem_info_count > 450:
+            self.mem_info_count = 0
+            print(micropython.mem_info())
+
+        # if gc fails to do it's job, trigger a hardware reset of the badge
+        if gc.mem_free() < 4096:
+            reset()
+
         gc.collect()
 
     def run(self):
