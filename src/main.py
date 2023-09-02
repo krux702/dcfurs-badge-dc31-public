@@ -352,143 +352,154 @@ class badge(object):
         self.disp.eye2.b = (self.disp.eye2.b * (1-mix)) + (mix * 0)
 
     def isr_update(self,*args):
-        schedule(self.update, self)
+        try:
+            schedule(self.update, self)
+        except:
+            # don't complain about the warnings saying the schedule queue is full. It's fine.
+            pass
 
     def update(self,*args):
-        self.touch.update()
-        if (self.touch.channels[0].level > 0.3) or (self.touch.channels[1].level > 0.3):
-            self.boop_debounce += 1
-            if not self.booped and self.boop_debounce > 3:
-                print("boop", end = "")
-                if (self.touch.channels[0].level > 0.3) and (self.touch.channels[1].level > 0.3):
-                    print("!")
-                    if randint(1,100) > 50:
-                        self.wink_flag = True
-                        self.wink_count = 6
-                        self.wink_mix = 1
+        try:
+            self.touch.update()
+            if (self.touch.channels[0].level > 0.3) or (self.touch.channels[1].level > 0.3):
+                self.boop_debounce += 1
+                if not self.booped and self.boop_debounce > 3:
+                    print("boop", end = "")
+                    if (self.touch.channels[0].level > 0.3) and (self.touch.channels[1].level > 0.3):
+                        print("!")
+                        if randint(1,100) > 50:
+                            self.wink_flag = True
+                            self.wink_count = 6
+                            self.wink_mix = 1
 
-                elif (self.touch.channels[0].level > 0.3) and not (self.touch.channels[1].level > 0.3):
-                    print(".")
+                    elif (self.touch.channels[0].level > 0.3) and not (self.touch.channels[1].level > 0.3):
+                        print(".")
+                    else:
+                        print("'")
+                    self.booped = True
+                self.blush_count = 50
+                if self.blush_mix < 1.0:
+                    self.blush_mix += 0.5
+            else:
+                self.booped = False
+                self.boop_debounce = 0
+                if self.blush_count > 0:
+                    self.blush_count -= 1
                 else:
-                    print("'")
-                self.booped = True
-            self.blush_count = 50
-            if self.blush_mix < 1.0:
-                self.blush_mix += 0.5
-        else:
-            self.booped = False
-            self.boop_debounce = 0
-            if self.blush_count > 0:
-                self.blush_count -= 1
+                    if self.blush_mix > 0.0:
+                        self.blush_mix -= 0.05
+
+            gc.collect()
+
+            if self.wink_count > 0:
+                self.wink_count -= 1
+            elif self.wink_mix > 0.0:
+                self.wink_flag = False
+                self.wink_mix -= 0.1
+
+            if (self.touch.channels[3].level > 0.3):
+                if not self.ear1_touch:
+                    print("ear1")
+                    self.ear1_touch = True
+                self.ear1_count = 12
+                if self.ear1_mix < 1.0:
+                    self.ear1_mix += 0.5
             else:
-                if self.blush_mix > 0.0:
-                    self.blush_mix -= 0.05
-
-        if self.wink_count > 0:
-            self.wink_count -= 1
-        elif self.wink_mix > 0.0:
-            self.wink_flag = False
-            self.wink_mix -= 0.1
-
-        if (self.touch.channels[3].level > 0.3):
-            if not self.ear1_touch:
-                print("ear1")
-                self.ear1_touch = True
-            self.ear1_count = 12
-            if self.ear1_mix < 1.0:
-                self.ear1_mix += 0.5
-        else:
-            self.ear1_touch = False
-            if self.ear1_count > 0:
-                self.ear1_count -= 1
-            else:
-                if self.ear1_mix > 0.0:
-                    self.ear1_mix -= 0.05
-
-        if (self.touch.channels[2].level > 0.3):
-            if not self.ear2_touch:
-                print("ear2")
-                self.ear2_touch = True
-            self.ear2_count = 12
-            if self.ear2_mix < 1.0:
-                self.ear2_mix += 0.5
-        else:
-            self.ear2_touch = False
-            if self.ear2_count > 0:
-                self.ear2_count -= 1
-            else:
-                if self.ear2_mix > 0.0:
-                    self.ear2_mix -= 0.05
-
-        self.sw4_state <<= 1
-        self.sw4_state |= self.sw4()
-        self.sw5_state <<= 1
-        self.sw5_state |= self.sw5()
-        if (self.sw4_state & 0x3) == 0x0:
-            self.sw4_count += 1
-        else:
-            self.sw4_count = 0
-        if (self.sw5_state & 0x3) == 0x0:
-            self.sw5_count += 1
-        else:
-            self.sw5_count = 0
-
-        if self.sw4_count == 0 and self.sw4_last > 0:
-            if self.sw4_last > 10: # long press
-                self.half_bright = not self.half_bright
-                if self.half_bright:
-                    print("Half bright")
+                self.ear1_touch = False
+                if self.ear1_count > 0:
+                    self.ear1_count -= 1
                 else:
-                    print("Full bright")
+                    if self.ear1_mix > 0.0:
+                        self.ear1_mix -= 0.05
+
+            if (self.touch.channels[2].level > 0.3):
+                if not self.ear2_touch:
+                    print("ear2")
+                    self.ear2_touch = True
+                self.ear2_count = 12
+                if self.ear2_mix < 1.0:
+                    self.ear2_mix += 0.5
             else:
-                self.anim_index += 1
-                if self.anim_index >= len(self.animations):
-                    self.anim_index = 0
-                print(self.animation_names[self.anim_index])
-            self.save_config()
-        elif self.sw5_count == 0 and self.sw5_last > 0:
-            if self.sw5_last > 10:
-                self.pallet_index += 1
-                if self.pallet_index >= len(self.pallet_functions):
-                    self.pallet_index = 0
-                self.pallet_functions[self.pallet_index](self.pallet)
+                self.ear2_touch = False
+                if self.ear2_count > 0:
+                    self.ear2_count -= 1
+                else:
+                    if self.ear2_mix > 0.0:
+                        self.ear2_mix -= 0.05
+
+            gc.collect()
+
+            self.sw4_state <<= 1
+            self.sw4_state |= self.sw4()
+            self.sw5_state <<= 1
+            self.sw5_state |= self.sw5()
+            if (self.sw4_state & 0x3) == 0x0:
+                self.sw4_count += 1
             else:
-                self.anim_index -= 1
-                if self.anim_index < 0:
-                    self.anim_index = len(self.animations)-1
-                print(self.animation_names[self.anim_index])
-            self.save_config()
+                self.sw4_count = 0
+            if (self.sw5_state & 0x3) == 0x0:
+                self.sw5_count += 1
+            else:
+                self.sw5_count = 0
 
-        self.sw4_last = self.sw4_count
-        self.sw5_last = self.sw5_count
+            if self.sw4_count == 0 and self.sw4_last > 0:
+                if self.sw4_last > 10: # long press
+                    self.half_bright = not self.half_bright
+                    if self.half_bright:
+                        print("Half bright")
+                    else:
+                        print("Full bright")
+                else:
+                    self.anim_index += 1
+                    if self.anim_index >= len(self.animations):
+                        self.anim_index = 0
+                    print(self.animation_names[self.anim_index])
+                self.save_config()
+            elif self.sw5_count == 0 and self.sw5_last > 0:
+                if self.sw5_last > 10:
+                    self.pallet_index += 1
+                    if self.pallet_index >= len(self.pallet_functions):
+                        self.pallet_index = 0
+                    self.pallet_functions[self.pallet_index](self.pallet)
+                else:
+                    self.anim_index -= 1
+                    if self.anim_index < 0:
+                        self.anim_index = len(self.animations)-1
+                    print(self.animation_names[self.anim_index])
+                self.save_config()
 
-        if self.half_bright:
-            self.disp.brightness = 50
-        else:
-            self.disp.brightness = 255
+            self.sw4_last = self.sw4_count
+            self.sw5_last = self.sw5_count
 
-        self.animations[self.anim_index].update()
-        if self.blush_mix:
-            self.blush(self.blush_mix)
-        if self.ear1_mix:
-            self.ear1_blush(self.ear1_mix)
-        if self.ear2_mix:
-            self.ear2_blush(self.ear2_mix)
-        if self.wink_mix:
-            self.eye2_wink(self.wink_mix)
-        self.disp.update()
+            if self.half_bright:
+                self.disp.brightness = 50
+            else:
+                self.disp.brightness = 255
 
-        # memory reporting
-        self.mem_info_count += 1
-        if self.mem_info_count > 450:
-            self.mem_info_count = 0
-            print(micropython.mem_info())
+            self.animations[self.anim_index].update()
+            if self.blush_mix:
+                self.blush(self.blush_mix)
+            if self.ear1_mix:
+                self.ear1_blush(self.ear1_mix)
+            if self.ear2_mix:
+                self.ear2_blush(self.ear2_mix)
+            if self.wink_mix:
+                self.eye2_wink(self.wink_mix)
+            self.disp.update()
 
-        # if gc fails to do it's job, trigger a hardware reset of the badge
-        if gc.mem_free() < 4096:
+            # memory reporting
+            #self.mem_info_count += 1
+            #if self.mem_info_count > 450:
+            #    self.mem_info_count = 0
+            #    print(micropython.mem_info())
+
+            gc.collect()
+
+        except MemoryError as error:
+            # gc didn't do it's job, so just reset
+            print(error)
+            time.sleep(3)
             reset()
-
-        gc.collect()
 
     def run(self):
         while True:
