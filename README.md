@@ -50,3 +50,9 @@ This is the initial release firmware on the badges.
 This is the new MicroPython firmware.
 
 
+### flash_nuke.uf2
+
+Use only if you really mess up and send your badge into a boot loop because of 
+bad python code that is preventing the upload new code before the badge resets 
+itself. Use this to wipe out the flash used for MicroPython program storage,
+then re-flash the badge with the MicroPython firmware.
