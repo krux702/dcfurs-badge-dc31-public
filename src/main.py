@@ -14,7 +14,7 @@ import math
 gc.collect()
 import time
 gc.collect()
-from random import random, randint
+from random import random, randint, uniform
 gc.collect()
 import array
 gc.collect()
@@ -147,7 +147,7 @@ class animation_chasers:
             self.traces.append([colour, speed, float(random()*46), (random()*0.07), 1.0,  array.array("f", [0]*46)])
             self.next = time.ticks_add(time.ticks_ms(), int(random()*3500))
 
-            # if traces are not dying off increase life_rate decay
+            # if (when) traces are not dying off increase life_rate decay
             if len(self.traces) > self.max_traces:
                 for i in range(len(self.traces)):
                     self.traces[i][3] += 0.01
@@ -232,6 +232,102 @@ class animation_sparkle:
         self.badge.disp.eye1.hsv(self.badge.pallet[int(1024*((i+self.offset)/46))&0x3FF][0], 1.0, 200)
         self.badge.disp.eye2.hsv(self.badge.pallet[int(1024*((i+self.offset)/46))&0x3FF][0], 1.0, 200)
 
+class animation_wipe:
+    def __init__(self, badge):
+        self.badge = badge
+        self.offset = 0.0
+        self.speed = 1
+        self.angle = 0.0
+        self.bar_width = 150.0
+        self.wipe_offset = 1024.0
+        self.min = 0.0
+        self.max = 0.0
+
+        # scanned the board to get physical XY positions of LED placement
+        self.buffer = [ [ -161.4, -156.95, 0],
+                        [ 162.8, -156.95, 1],
+                        [ -163.7, -145.75, 2],
+                        [ 163.8, -145.25, 3],
+                        [ -165.1, -133.15, 4],
+                        [ 165.0, -132.15, 5],
+                        [ -165.8, -116.65, 6],
+                        [ 165.8, -115.65, 7],
+                        [ -165.8, -98.55, 8],
+                        [ 165.6, -97.55, 9],
+                        [ -164.4, -79.55, 10],
+                        [ 164.1, -78.25, 11],
+                        [ -161.6, -58.85, 12],
+                        [ 161.4, -57.95, 13],
+                        [ -156.6, -37.15, 14],
+                        [ 156.3, -36.45, 15],
+                        [ -153.0, -25.55, 16],
+                        [ 152.6, -25.15, 17],
+                        [ -148.8, -13.25, 18],
+                        [ 148.2, -12.55, 19],
+                        [ -142.3, -0.95, 20],
+                        [ 141.7, -0.45, 21],
+                        [ -135.1, 11.05, 22],
+                        [ 134.6, 11.15, 23],
+                        [ -120.8, 53.45, 24],
+                        [ 119.5, 54.05, 25],
+                        [ -124.4, 62.95, 26],
+                        [ 123.8, 63.45, 27],
+                        [ -127.3, 73.45, 28],
+                        [ 126.6, 73.55, 29],
+                        [ -128.7, 87.35, 30],
+                        [ 128.1, 87.25, 31],
+                        [ 60.4, 86.45, 32],
+                        [ -60.5, 85.65, 33],
+                        [ 29.4, 113.55, 34],
+                        [ -29.5, 113.65, 35],
+                        [ 41.6, 125.85, 36],
+                        [ -42.6, 127.15, 37],
+                        [ 54.6, 117.85, 38],
+                        [ -54.8, 118.65, 39],
+                        [ 53.8, 138.85, 40],
+                        [ -54.8, 137.85, 41],
+                        [ 66.1, 124.35, 42],
+                        [ -66.4, 123.65, 43],
+                        [ 59.5, 156.75, 44],
+                        [ -60.7, 156.95, 45],
+                        [ 77.6, 136.65, 46],
+                        [ -78.5, 134.95, 47] ]
+
+    def rotate(self, angle):
+        for led in range(48):
+            xr = (self.buffer[led][0] * math.cos(angle)) + (self.buffer[led][1] * math.sin(angle))
+            yr = (-1 * (self.buffer[led][0] * math.sin(angle))) + (self.buffer[led][1] * math.cos(angle))
+            self.buffer[led][0] = xr
+            self.buffer[led][1] = yr
+
+    def update(self):
+        self.offset += 0.5
+        self.wipe_offset += 3.5
+        if self.wipe_offset > self.max:
+            self.angle = uniform(-6.283, 6.283)
+            self.rotate(self.angle)
+            for led in range(48):
+                if self.buffer[led][0] < self.min:
+                    self.min = self.buffer[led][0]
+                if self.buffer[led][0] > self.max:
+                    self.max = self.buffer[led][0]
+            self.wipe_offset = self.min - self.bar_width - 3.5
+
+        for i in range(48):
+            brightness = ((2/self.bar_width) * (self.buffer[i][0] - self.min + self.wipe_offset))
+            if brightness < 0:
+                brightness = 0
+            elif brightness >= 2 :
+                brightness = 0
+            elif brightness > 1:
+                brightness = 1 - (brightness - 1)
+            brightness = int(180 * brightness)
+
+            self.badge.disp.downward[self.buffer[i][2]].hsv(self.badge.pallet[int(1024*(self.buffer[i][2]+self.offset)/100)&0x3FF][0], 1.0, brightness)
+
+        self.badge.disp.eye1.hsv(self.badge.pallet[int(1024*((i+self.offset)/46))&0x3FF][0], 1.0, 200)
+        self.badge.disp.eye2.hsv(self.badge.pallet[int(1024*((i+self.offset)/46))&0x3FF][0], 1.0, 200)
+
 class badge(object):
     def __init__(self):
         self.disp = is31fl3737()
@@ -246,10 +342,15 @@ class badge(object):
         self.touch.channels[3].level_hi = 20000
         self.anim_index = 1
         self.half_bright = False
-        self.animations = [animation_rainbow_around(self),animation_rainbow_down(self),animation_chasers(self),animation_sparkle(self)]
-        self.animation_names = ["rainbow around", "rainbow_down", "chasers", "sparkle"]
+        self.animations = [animation_rainbow_around(self),
+                           animation_rainbow_down(self),
+                           animation_chasers(self),
+                           animation_sparkle(self),
+                           animation_wipe(self)]
+        self.animation_names = ["rainbow around", "rainbow down", "chasers", "sparkle", "wipe"]
         self.pallet_index = 0
-        self.pallet_functions = [pallet_rainbow, pallet_blue, pallet_red, pallet_yellow, pallet_green, pallet_purple, pallet_magenta]
+        self.pallet_functions = [pallet_rainbow, pallet_blue, pallet_red, pallet_yellow,
+                                 pallet_green, pallet_purple, pallet_magenta]
         self.blush_mix = 0.0
         self.ear1_mix = 0.0
         self.ear2_mix = 0.0
@@ -282,6 +383,10 @@ class badge(object):
         self.read_config()
 
         self.mem_info_count = 0
+        self.last = 0
+        self.ticks = 100
+        self.min_ticks = 4096
+        self.max_ticks = 0
 
         print("Dreams are messages from the deep.")
         self.timer = Timer(mode=Timer.PERIODIC, freq=15, callback=self.isr_update) # <== Comment out to use the polled method
@@ -360,6 +465,7 @@ class badge(object):
 
     def update(self,*args):
         try:
+            self.last = time.ticks_ms()
             self.touch.update()
             if (self.touch.channels[0].level > 0.3) or (self.touch.channels[1].level > 0.3):
                 self.boop_debounce += 1
@@ -389,8 +495,6 @@ class badge(object):
                     if self.blush_mix > 0.0:
                         self.blush_mix -= 0.05
 
-            gc.collect()
-
             if self.wink_count > 0:
                 self.wink_count -= 1
             elif self.wink_mix > 0.0:
@@ -399,8 +503,9 @@ class badge(object):
 
             if (self.touch.channels[3].level > 0.3):
                 if not self.ear1_touch:
-                    print("ear1")
+                    print("( ear")
                     self.ear1_touch = True
+
                 self.ear1_count = 12
                 if self.ear1_mix < 1.0:
                     self.ear1_mix += 0.5
@@ -414,7 +519,7 @@ class badge(object):
 
             if (self.touch.channels[2].level > 0.3):
                 if not self.ear2_touch:
-                    print("ear2")
+                    print("ear )")
                     self.ear2_touch = True
                 self.ear2_count = 12
                 if self.ear2_mix < 1.0:
@@ -427,7 +532,7 @@ class badge(object):
                     if self.ear2_mix > 0.0:
                         self.ear2_mix -= 0.05
 
-            gc.collect()
+            # gc.collect()
 
             self.sw4_state <<= 1
             self.sw4_state |= self.sw4()
@@ -485,15 +590,25 @@ class badge(object):
                 self.ear2_blush(self.ear2_mix)
             if self.wink_mix:
                 self.eye2_wink(self.wink_mix)
+
             self.disp.update()
+            gc.collect()
+
+            # tick statistics
+            self.ticks = time.ticks_diff(time.ticks_ms(), self.last)
+            if self.ticks < self.min_ticks:
+                self.min_ticks = self.ticks
+            if self.ticks > self.max_ticks:
+                self.max_ticks = self.ticks
 
             # memory reporting
-            #self.mem_info_count += 1
-            #if self.mem_info_count > 450:
-            #    self.mem_info_count = 0
-            #    print(micropython.mem_info())
-
-            gc.collect()
+            self.mem_info_count += 1
+            if self.mem_info_count > 450:
+                self.mem_info_count = 0
+                print(micropython.mem_info())
+                print("ticks_ms: l:" + str(self.ticks) + " min:" + str(self.min_ticks) + " max:" + str(self.max_ticks))
+                self.min_ticks = 4096
+                self.max_ticks = 0
 
         except MemoryError as error:
             # gc didn't do it's job, so just reset
@@ -504,7 +619,7 @@ class badge(object):
     def run(self):
         while True:
             self.update()
-            time.sleep(1/15)
+            time.sleep_ms(max(108 - self.ticks, 0))
 
 
 global t
